@@ -177,4 +177,4 @@ data_val = data_val.shuffle(SHUFFLE)
 data_val = data_val.batch(BATCH_SIZE)
 data_val = data_val.prefetch(tf.data.AUTOTUNE)
 
-model.fit(dataset,epochs=50,verbose=1, steps_per_epoch=lenght//BATCH_SIZE, callbacks=[model_checkpoint_callback], validation_data=data_val)
+model.fit(dataset,epochs=150,verbose=1, steps_per_epoch=lenght//BATCH_SIZE, callbacks=[model_checkpoint_callback], validation_data=data_val)
