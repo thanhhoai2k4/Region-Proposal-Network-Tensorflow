@@ -46,7 +46,7 @@ all_anchors = create_anchors_for_feature_map(
         (15, 15),
         base_size=16)
 
-image = load_image("data_training/images/maksssksksss1.png",(500,500))
+image = load_image("data_training/images/maksssksksss2.png",(500,500))
 image = np.expand_dims(image, 0)
 
 
@@ -62,8 +62,6 @@ boxes_affter = offset_inverse(all_anchors, offset)
 boxes_affter = boxes_affter[inds]
 score = score[inds].reshape(len(inds),)
 boxes_affter = box_center_to_corner(boxes_affter)
-print(score.shape)
-print(boxes_affter.shape)
 
 a = tf.image.non_max_suppression(
     boxes_affter,

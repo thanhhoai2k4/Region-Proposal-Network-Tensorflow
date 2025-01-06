@@ -4,6 +4,7 @@ The repository is used to implement a Region Proposal Network (RPN) in Faster R-
 ## 1. Requirement
 * Python :[3.10](https://www.python.org/downloads/release/python-31016/)
 * Tensorflow 2.17.1: needed CUDA.
+* IDE: Pycharm.
 
 
 ## 2. Data Preparation
