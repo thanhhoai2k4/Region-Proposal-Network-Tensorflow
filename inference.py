@@ -46,7 +46,7 @@ all_anchors = create_anchors_for_feature_map(
         (15, 15),
         base_size=16)
 
-image = load_image("data_training/images/maksssksksss101.png",(500,500))
+image = load_image("data_training/images/maksssksksss1.png",(500,500))
 image = np.expand_dims(image, 0)
 
 
