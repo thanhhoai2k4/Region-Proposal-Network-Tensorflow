@@ -46,7 +46,7 @@ def modelRPN():
 
     model = tf.keras.Model(inputs=[vgg16.input], outputs=[output_scores, output_deltas])
     optimizer = tf.keras.optimizers.SGD(
-        learning_rate=0.001,  # Tốc độ học
+        learning_rate=0.01,  # Tốc độ học
         momentum=0.9,  # Giá trị Momentum
         nesterov=True  # Có sử dụng Nesterov Momentum hay không
     )
@@ -162,7 +162,7 @@ data_val = tf.data.Dataset.from_generator(
 lenght = len(getXMLs())
 model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath="weight.weights.h5",  # Đường dẫn lưu mô hình
-    monitor="loss",       # Tiêu chí giám sát (vd: val_loss, val_accuracy, loss, etc.)
+    monitor="val_loss",       # Tiêu chí giám sát (vd: val_loss, val_accuracy, loss, etc.)
     save_best_only=True,      # Chỉ lưu mô hình tốt nhất
     save_weights_only=True,  # Lưu toàn bộ mô hình (False) hoặc chỉ weights (True)
     mode="min",               # 'min' (val_loss thấp nhất) hoặc 'max' (accuracy cao nhất)
