@@ -26,6 +26,7 @@ def parse_Label(xml_file: str, target_size: tuple):
         return: img, boxes, classes
         shape: (height, width, 3)    (num box, 4)    (num box)
     """
+    idx_class = {"without_mask":0, "with_mask":1, "mask_weared_incorrect":2}
     try:
         tree = ET.parse(xml_file)
     except Exception:
@@ -49,6 +50,7 @@ def parse_Label(xml_file: str, target_size: tuple):
 
     for obj in root.iter("object"):
         cls = obj.find("name").text
+        cls = idx_class[cls]
         classes.append(cls)
 
         bbox = obj.find("bndbox")
@@ -61,50 +63,6 @@ def parse_Label(xml_file: str, target_size: tuple):
 
     return np.array(img), np.array(boxes), np.array(classes)
 
-def parse_Label11(xml_file: str, target_size: tuple):
-    """
-        read xml file and into target size and annotation
-
-        xml_file: path into xml_file
-        target_size: want target of image
-
-        return: img, boxes, classes
-        shape: (height, width, 3)    (num box, 4)    (num box)
-    """
-    try:
-        tree = ET.parse(xml_file)
-    except Exception:
-        print("Fail")
-
-    root = tree.getroot()
-
-    # width of an image
-    width_image = int(root.find("size").find("width").text)
-    height_image = int(root.find("size").find("height").text)
-
-    scaleX = float(width_image / target_size[0])
-    scaleY = float(height_image / target_size[1])
-
-    image_name = root.find("filename").text
-    img = load_image(PATH_IMAGE + image_name, target_size)
-    img = np.array(img)/256.0
-
-    boxes = []
-    classes = []
-
-    for obj in root.iter("object"):
-        cls = obj.find("name").text
-        classes.append(cls)
-
-        bbox = obj.find("bndbox")
-        xmin = float(bbox.find("xmin").text) / scaleX
-        ymin = float(bbox.find("ymin").text) / scaleY
-        xmax = float(bbox.find("xmax").text) / scaleX
-        ymax = float(bbox.find("ymax").text) / scaleY
-
-        boxes.append(np.array([xmin, ymin, xmax, ymax]))
-
-    return np.array(img), np.array(boxes)
 
 def offset_boxes(anchors, assigned_bb, eps=1e-6):
     """Transform for anchor box offsets."""
@@ -167,6 +125,7 @@ def box_corner_to_center(boxes):
 
 def box_center_to_corner(boxes):
     """
+    apllay for  npArray
     Convert box center coordinates[x_center, y_center, width, height] to corners[xmin, ymin, xmax, ymax].
     boxes: shape[number box, 4]
     return: shape[number box, 4]
@@ -352,10 +311,12 @@ def smoothL1( y_true, y_pred, beta=1.0):
     return tf.reduce_mean(loss)
 
 def offset_inverse(anchors, offset_preds):
-    """Predict bounding boxes based on anchor boxes with predicted offsets."""
+    """Predict bounding boxes based on anchor boxes with predicted offsets.
+    apply for NumPy array
+    """
     anc = box_corner_to_center(anchors)
     pred_bbox_xy = (offset_preds[:, :2] * anc[:, 2:] / 10) + anc[:, :2]
-    pred_bbox_wh = np.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
+    pred_bbox_wh = np.exp(offset_preds[:, 2:] /5) * anc[:, 2:]
     pred_bbox = tf.concat ((pred_bbox_xy, pred_bbox_wh), axis=1)
     predicted_bbox = box_center_to_corner(pred_bbox)
     return predicted_bbox
@@ -405,3 +366,55 @@ def nms(boxes, scores, iou_threshold):
         indices = indices[1:][iou <= iou_threshold]
 
     return keep
+
+
+# Aplay for TENSORFLOW
+
+def box_center_to_corner_TENSORFLOW(boxes):
+    """
+    Convert box center coordinates[x_center, y_center, width, height] to corners[xmin, ymin, xmax, ymax].
+    boxes: shape[number box, 4]
+    return: shape[number box, 4]
+    """
+
+    cx, cy, w, h = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    x1 = cx - 0.5 * w
+    y1 = cy - 0.5 * h
+    x2 = cx + 0.5 * w
+    y2 = cy + 0.5 * h
+
+    boxes = tf.stack((x1, y1, x2, y2), axis=-1)
+    return boxes
+
+def box_corner_to_center_TENSORFLOW(boxes):
+    """
+    Convert box corners[xmin, ymin, xmax, ymax] to center coordinates[x_center, y_center, width, height].
+    boxes : shape[number box, 4]
+    return : shape[number box, 4]
+    """
+
+    x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+
+    # center_x
+    cx = (x1 + x2) / 2
+    # center_y
+    cy = (y1 + y2) / 2
+    # width
+    w = (x2 - x1)
+    # height
+    h = (y2 - y1)
+    boxes = tf.stack((cx, cy, w, h), axis=-1)
+    return boxes
+
+
+
+def offset_inverse_TENSORFLOW(anchors, offset_preds):
+    """Predict bounding boxes based on anchor boxes with predicted offsets.
+    apply for NumPy array
+    """
+    anc = box_center_to_corner_TENSORFLOW(anchors)
+    pred_bbox_xy = (offset_preds[:, :2] * anc[:, 2:] / 10) + anc[:, :2]
+    pred_bbox_wh = np.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
+    pred_bbox = tf.concat ((pred_bbox_xy, pred_bbox_wh), axis=1)
+    predicted_bbox = box_corner_to_center_TENSORFLOW(pred_bbox)
+    return predicted_bbox

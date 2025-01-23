@@ -3,9 +3,8 @@ from config import *
 from Utils import *
 from config import TARGET_SIZE
 
-
 # model base Region proposal network
-def modelRPN():
+def Faster_Rcnn():
     # Load VGG16 with it's weights.
     vgg16 = tf.keras.applications.VGG16(
         include_top=False,
@@ -45,17 +44,19 @@ def modelRPN():
         name="scores1"
     )(convolution_3x3)
 
-    model = tf.keras.Model(inputs=[vgg16.input], outputs=[output_scores, output_deltas])
+    model1 = tf.keras.Model(inputs=[vgg16.input], outputs=[output_scores, output_deltas])
     optimizer = tf.keras.optimizers.SGD(
-        learning_rate=0.01,  # Tốc độ học
+        learning_rate=0.001,  # Tốc độ học
         momentum=0.9,  # Giá trị Momentum
         nesterov=True  # Có sử dụng Nesterov Momentum hay không
     )
-    model.compile(optimizer=optimizer, loss={'scores1':loss_cls, 'deltas1':smoothL1})
-    model.load_weights("weight.weights.h5")
+    model1.compile(optimizer=optimizer, loss={'scores1':loss_cls, 'deltas1':smoothL1})
 
 
-    return model
+
+
+
+    return model1
 
 def produce_batch(image, gt_boxes, outPutShape:tuple):
     image_width, image_height = image.shape[:2]  # width and height of image roof
@@ -122,63 +123,18 @@ def getData(mode):
     xmls = getXMLs(mode=mode)
     for i in range(len(xmls)):
         xmls[i] = PATH_ANNOTATION + xmls[i]
-    N = len(xmls)
-    i = 0
 
     outPutShape = tf.keras.applications.VGG16(
         include_top=False,
         weights="imagenet",
         input_shape=(500, 500, 3),
     ).layers[-1].output.shape[1:3]  # 15,15
-    i = 0
     for xml in xmls:
         img, gt_boxes, classes = parse_Label(xml, TARGET_SIZE)
         offset, lb, all_anchors = produce_batch(img, gt_boxes, outPutShape)
         yield img, (lb, offset)
 
+
 # build model
-model = modelRPN()
-# load dataset
-dataset = tf.data.Dataset.from_generator(
-    lambda: getData("train"),
-    output_signature=(
-        tf.TensorSpec(shape=(500,500,3), dtype=tf.float32),  # Đầu vào X_batch image
-        (
-            tf.TensorSpec(shape=(2025, 1), dtype=tf.float32),# Đầu ra 1 (hồi quy) score
-            tf.TensorSpec(shape=(2025,5), dtype=tf.float32),# Đầu ra 2 (phân loại) offset
-        )
-    )
-)
+model = Faster_Rcnn()
 
-data_val = tf.data.Dataset.from_generator(
-    lambda: getData("val"),
-    output_signature=(
-        tf.TensorSpec(shape=(500,500,3), dtype=tf.float32),  # Đầu vào X_batch image
-        (
-            tf.TensorSpec(shape=(2025, 1), dtype=tf.float32),# Đầu ra 1 (hồi quy) score
-            tf.TensorSpec(shape=(2025,5), dtype=tf.float32),# Đầu ra 2 (phân loại) offset
-        )
-    )
-)
-
-
-lenght = len(getXMLs())
-model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath="weight.weights.h5",  # Đường dẫn lưu mô hình
-    monitor="val_loss",       # Tiêu chí giám sát (vd: val_loss, val_accuracy, loss, etc.)
-    save_best_only=True,      # Chỉ lưu mô hình tốt nhất
-    save_weights_only=True,  # Lưu toàn bộ mô hình (False) hoặc chỉ weights (True)
-    mode="min",               # 'min' (val_loss thấp nhất) hoặc 'max' (accuracy cao nhất)
-    verbose=1         # In log khi lưu mô hình
-)
-
-
-dataset = dataset.shuffle(SHUFFLE)
-dataset = dataset.batch(BATCH_SIZE)
-dataset = dataset.prefetch(tf.data.AUTOTUNE)
-
-data_val = data_val.shuffle(SHUFFLE)
-data_val = data_val.batch(BATCH_SIZE)
-data_val = data_val.prefetch(tf.data.AUTOTUNE)
-
-model.fit(dataset,epochs=150,verbose=1, steps_per_epoch=lenght//BATCH_SIZE, callbacks=[model_checkpoint_callback], validation_data=data_val)

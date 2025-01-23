@@ -51,6 +51,7 @@ def modelRPN():
         nesterov=True  # Có sử dụng Nesterov Momentum hay không
     )
     model.compile(optimizer=optimizer, loss={'scores1':loss_cls, 'deltas1':smoothL1})
+    model.load_weights("gate/weight.weights.h5")
     return model
 
 def produce_batch(image, gt_boxes, outPutShape:tuple):
@@ -118,17 +119,14 @@ def getData(mode):
     xmls = getXMLs(mode=mode)
     for i in range(len(xmls)):
         xmls[i] = PATH_ANNOTATION + xmls[i]
-    N = len(xmls)
-    i = 0
 
     outPutShape = tf.keras.applications.VGG16(
         include_top=False,
         weights="imagenet",
         input_shape=(500, 500, 3),
     ).layers[-1].output.shape[1:3]  # 15,15
-    i = 0
     for xml in xmls:
-        img, gt_boxes = parse_Label11(xml, TARGET_SIZE)
+        img, gt_boxes, classes = parse_Label(xml, TARGET_SIZE)
         offset, lb, all_anchors = produce_batch(img, gt_boxes, outPutShape)
         yield img, (lb, offset)
 
@@ -161,7 +159,7 @@ data_val = tf.data.Dataset.from_generator(
 lenght = len(getXMLs())
 model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath="weight.weights.h5",  # Đường dẫn lưu mô hình
-    monitor="loss",       # Tiêu chí giám sát (vd: val_loss, val_accuracy, loss, etc.)
+    monitor="val_loss",       # Tiêu chí giám sát (vd: val_loss, val_accuracy, loss, etc.)
     save_best_only=True,      # Chỉ lưu mô hình tốt nhất
     save_weights_only=True,  # Lưu toàn bộ mô hình (False) hoặc chỉ weights (True)
     mode="min",               # 'min' (val_loss thấp nhất) hoặc 'max' (accuracy cao nhất)
