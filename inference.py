@@ -92,4 +92,4 @@ def main(imagepath, model):
     plot_anchors_xyxy(image, boxes)
 
 
-main("Image_Test/02.jpg", RPN())
+main("Image_Test/04.jpg", RPN())

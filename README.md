@@ -18,4 +18,17 @@ in Current Path, you install package:
 
     `pip install -r requirements.txt`
 
-.
+## 4.Training with tensorflow.
+
+"Training_Cache.py" : this is training file with a small dataset.
+
+"Trainning_Generator.py" : this is training file using [tf.Data](https://www.tensorflow.org/api_docs/python/tf/data/Dataset) is parallel load.
+
+"Trainning_pre.py" : this is pre-Training.
+
+
+
+
+## 5. result.
+
+![Alt text](result_01.png)
