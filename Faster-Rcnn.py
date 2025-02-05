@@ -1,10 +1,67 @@
+import keras
 import numpy as np
 from config import *
 from Utils import *
 from config import TARGET_SIZE
 
+class OffsetToBox(tf.keras.layers.Layer):
+    def __init__(self,anchors, **kwargs):
+        super(OffsetToBox, self).__init__(**kwargs)
+        self.anchors = anchors
+    def call(self, offsets):
+        offsets = tf.reshape(offsets,(-1,2025,4))
+        dx = tf.reshape(offsets[...,0], (-1,1))
+        dy = tf.reshape(offsets[...,1], (-1,1))
+        dw = tf.reshape(offsets[...,2], (-1,1))
+        dh = tf.reshape(offsets[...,3], (-1,1))
+
+        x_a = tf.reshape(self.anchors[...,0], (-1,1))
+        y_a = tf.reshape(self.anchors[...,1], (-1,1))
+        w_a = tf.reshape(self.anchors[...,2], (-1,1))
+        h_a = tf.reshape(self.anchors[...,3], (-1,1))
+
+        x_center = (dx/10) * w_a + x_a
+        y_center = (dy/10) * h_a + y_a
+        width = tf.exp(dw/5) * w_a
+        height = tf.exp(dh/5) *h_a
+
+        x_center = tf.reshape(x_center, (-1,))
+        y_center = tf.reshape(y_center, (-1,))
+        width = tf.reshape(width, (-1,))
+        height = tf.reshape(height, (-1,))
+        boxes = tf.stack([x_center, y_center, width, height], axis=1)
+
+        return boxes
+
+    def compute_output_shape(self, input_shape):
+        # Assuming the input shapes are (batch_size, num_anchors, 4) for both anchors and offsets
+        return [(input_shape[0], input_shape[1], 4)]  # (batch_size, num_anchors, 4) for boxes
+
+
+class NMS_1(tf.keras.layers.Layer):
+    def __init__(self, keep = 20, iou_threshold = 0.5, **kwargs):
+        super(NMS_1, self).__init__(**kwargs)
+        self.keep = keep
+        self.iou_threshold = iou_threshold
+
+    def call(self, boxes, scores):
+        pass
+
+    def compute_output_shape(self, input_shape):
+        """
+            keep nms
+        """
+        return [(input_shape[0], self.keep, 4)]
+
 # model base Region proposal network
-def Faster_Rcnn():
+def Faster_Rcnn(image_width, image_height, width_feature_map, height_feature_map):
+    """"""
+    all_anchors = create_anchors_for_feature_map(
+        (image_width, image_height),
+        (width_feature_map, height_feature_map),
+        base_size=16)
+    all_anchors = tf.convert_to_tensor(all_anchors, dtype=tf.float32)
+    """"""
     # Load VGG16 with it's weights.
     vgg16 = tf.keras.applications.VGG16(
         include_top=False,
@@ -51,12 +108,13 @@ def Faster_Rcnn():
         nesterov=True  # Có sử dụng Nesterov Momentum hay không
     )
     model1.compile(optimizer=optimizer, loss={'scores1':loss_cls, 'deltas1':smoothL1})
+    model1.load_weights("gate/weight.weights.h5")
 
+    box = OffsetToBox(all_anchors)(output_deltas)
+    mns = NMS_1()(box, output_scores)
+    model2 = tf.keras.Model(inputs=[vgg16.input], outputs=[output_scores, box])
 
-
-
-
-    return model1
+    return model1, model2
 
 def produce_batch(image, gt_boxes, outPutShape:tuple):
     image_width, image_height = image.shape[:2]  # width and height of image roof
@@ -136,5 +194,19 @@ def getData(mode):
 
 
 # build model
-model = Faster_Rcnn()
+model1, model2 = Faster_Rcnn(500,500,15,15)
 
+
+
+
+a = load_image("Image_Test/10.png", (500,500))
+b = np.asarray(a)/255.0
+a1 = np.expand_dims(b,0)
+
+
+scores, box = model2.predict(a1)
+box = box[0]
+scores = np.reshape(scores,(2025,1))
+idx = np.where(scores>0.7)[0]
+box = box[idx]
+plot_anchors_xywh(a, box)

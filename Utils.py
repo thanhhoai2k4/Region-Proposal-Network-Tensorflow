@@ -256,7 +256,7 @@ def plot_anchors_xywh(image, all_anchors):
     for (x,y,w,h) in all_anchors:
         x = x-(w//2)
         y = y-(h//2)
-        w= w
+        w = w
         h = h
 
         rect = Rectangle((x,y), w,h, facecolor='none',edgecolor="red", lw=2 )
